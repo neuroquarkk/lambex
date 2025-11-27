@@ -4,19 +4,30 @@
     "type": "module",
     "private": true,
     "scripts": {
+        "dev": "bun run --hot src/server.ts",
         "format": "prettier . --write",
         "prepare": "husky"
     },
     "devDependencies": {
         "@types/bun": "latest",
+        "@types/express": "^5.0.5",
+        "@types/morgan": "^1.9.10",
         "husky": "^9.1.7",
         "lint-staged": "^16.2.7",
-        "prettier": "^3.6.2"
+        "prettier": "^3.6.2",
+        "prisma": "6.18.0"
     },
     "peerDependencies": {
         "typescript": "^5"
     },
     "lint-staged": {
         "*.{js,jsx,ts,tsx,json,css,scss,md,html}": "prettier --write"
+    },
+    "dependencies": {
+        "@prisma/client": "6.18.0",
+        "express": "^5.1.0",
+        "morgan": "^1.10.1",
+        "redis": "^5.10.0",
+        "zod": "^4.1.13"
     }
 }
