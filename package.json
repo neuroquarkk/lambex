@@ -4,7 +4,8 @@
     "type": "module",
     "private": true,
     "scripts": {
-        "dev": "bun run --hot src/server.ts",
+        "dev:server": "bun run --hot src/server.ts",
+        "dev:worker": "bun run --hot worker/index.ts",
         "format": "prettier . --write",
         "prepare": "husky"
     },
