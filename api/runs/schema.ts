@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const languageEnum = ['javascript'];
+const languageEnum = ['javascript', 'typescript', 'python', 'c', 'cpp'];
 
 export const createRunSchema = z.object({
     language: z.enum(languageEnum),
