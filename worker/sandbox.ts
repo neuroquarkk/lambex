@@ -1,9 +1,10 @@
 import { spawn } from 'child_process';
 import { SUPPORTED_LANGUAGES } from './languages';
+import { config } from 'src/config';
 
 export class Sandbox {
-    private static readonly timeoutMs = 5000;
-    private static readonly memoryLimit = '128m';
+    private static readonly timeoutMs = config.EXECUTION_TIMEOUT_MS;
+    private static readonly memoryLimit = config.EXECUTION_MEMORY_LIMIT;
 
     public static async execute(language: string, code: string) {
         const profile = SUPPORTED_LANGUAGES[language];

@@ -13,8 +13,9 @@ export class Worker {
     private redis: ReturnType<typeof createClient>;
     private heartbeatTimer: Timer | null = null;
 
-    private readonly HEARTBEAT_INTERVAL_MS = 3000;
-    private readonly HEARTBEAT_TTL_SECONDS = 10;
+    private readonly HEARTBEAT_INTERVAL_MS =
+        config.WORKER_HEARTBEAT_INTERVAL_MS;
+    private readonly HEARTBEAT_TTL_SECONDS = config.WORKER_HEARTBEAT_TTL_SEC;
 
     constructor(idx: number) {
         this.workerIdx = idx;
