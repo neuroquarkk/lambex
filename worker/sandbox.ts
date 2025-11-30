@@ -1,6 +1,7 @@
-import { spawn } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { SUPPORTED_LANGUAGES } from './languages';
 import { config } from 'src/config';
+import { randomUUID } from 'crypto';
 
 export class Sandbox {
     private static readonly timeoutMs = config.EXECUTION_TIMEOUT_MS;
@@ -9,6 +10,8 @@ export class Sandbox {
     public static async execute(language: string, code: string) {
         const profile = SUPPORTED_LANGUAGES[language];
         if (!profile) throw new Error(`Unsupported langauge: ${language}`);
+
+        const containerName = `sandbox-${randomUUID()}`;
 
         return new Promise<{
             output: string;
@@ -23,6 +26,9 @@ export class Sandbox {
             const args = [
                 'run',
                 '--rm',
+                '--init',
+                '--name',
+                containerName,
                 '-i', // keep stdin open for piping code
                 '--network',
                 'none',
@@ -47,6 +53,12 @@ export class Sandbox {
             // kill container if it runs too long
             const timer = setTimeout(() => {
                 isTimeout = true;
+                exec(`docker kill ${containerName}`, (err) => {
+                    if (err)
+                        console.error(
+                            `Failed to kill container ${containerName}`
+                        );
+                });
                 process.kill(); // send sigterm to docker cli
                 resolve({
                     output: '',
