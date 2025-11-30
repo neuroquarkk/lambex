@@ -112,3 +112,4 @@ worker:{uuid}
 ## Documentation
 
 - [Adding a New Language](docs/ADD_LANGUAGE.md)
+- [Architecture](docs/ARCHITECTURE.md)
