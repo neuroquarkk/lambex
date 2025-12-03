@@ -26,6 +26,7 @@
     },
     "dependencies": {
         "@prisma/client": "6.18.0",
+        "commander": "^14.0.2",
         "express": "^5.1.0",
         "morgan": "^1.10.1",
         "redis": "^5.10.0",
