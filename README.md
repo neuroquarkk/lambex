@@ -66,27 +66,48 @@ Response returns:
 - `error` - Execution error if any
 - `executionTime` - Runtime duration (ms)
 
+### **Workers**
+
+Controls the worker pool via Redis
+
+1. **GET `/api/workers`:**
+   List all active workers and their current status
+
+Response:
+
+- `id` - Worker UUID
+- `status` - `IDLE` or `BUSY`
+- `uptime` - Seconds online
+
+2. **POST `/api/workers/scale`:**
+   Dynamically spawn new workers on active manager nodes
+
+Request Body:
+
+- `count` - Number of new workers to launch (default: 1)
+- `targetId` - Specific Manager Id to target, if omitted it's random
+
+3. **DELETE `/api/workers/:workerId`:**
+   Send a kill signal to a specific worker instance
+
 ---
 
 ## Worker Service
 
-Workers pull jobs from Redis and execute code inside locked down Docker containers
+The worker service is now a reactive **Manager** that maintains a pool of worker instances
+It listens for control signals from the API to dynamically spawn or kill executors
 
-### Run Modes
-
-Single Worker:
+Start the manager (starts with 0 workers by default)
 
 ```sh
 bun run worker/index.ts
 ```
 
-Multiple workers:
+### How it works
 
-```sh
-bun run worker/index.ts -c 4
-```
-
-Each worker has an independent Redis connection and executes concurrently without blocking others
+1. **Service Discovery:** on startup, the manager registers itself in redis (`manager:{id}`) so the api knows it is online
+2. **Control Plane:** it subscribes to the redis control channel to receive `SPAWN` or `KILL` commands
+3. **Targeting:** the api can target specific manager nodes for scaling or all active managers randomly
 
 ---
 
