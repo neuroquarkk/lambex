@@ -30,6 +30,7 @@ export class Worker {
 
     public async start() {
         await this.redis.connect();
+        await this.sendHeartbeat();
         this.startHeartbeat();
         this.processLoop();
     }
@@ -45,35 +46,39 @@ export class Worker {
         return this.id;
     }
 
+    private async sendHeartbeat() {
+        if (this.isShutting) return;
+
+        const workerData = {
+            id: this.id,
+            hostname: hostname(),
+            status: this.currentRunId ? 'BUSY' : 'IDLE',
+            currentRunId: this.currentRunId,
+            uptime: process.uptime(),
+        };
+
+        try {
+            await this.redis.set(
+                `worker:${this.id}`,
+                JSON.stringify(workerData),
+                {
+                    expiration: {
+                        type: 'EX',
+                        value: this.HEARTBEAT_TTL_SECONDS,
+                    },
+                }
+            );
+        } catch (error) {
+            console.error(
+                `[Worker ${this.workerIdx}] Heartbeat failed:`,
+                error
+            );
+        }
+    }
+
     private startHeartbeat() {
-        this.heartbeatTimer = setInterval(async () => {
-            if (this.isShutting) return;
-
-            const workerData = {
-                id: this.id,
-                hostname: hostname(),
-                status: this.currentRunId ? 'BUSY' : 'IDLE',
-                currentRunId: this.currentRunId,
-                uptime: process.uptime(),
-            };
-
-            try {
-                await this.redis.set(
-                    `worker:${this.id}`,
-                    JSON.stringify(workerData),
-                    {
-                        expiration: {
-                            type: 'EX',
-                            value: this.HEARTBEAT_TTL_SECONDS,
-                        },
-                    }
-                );
-            } catch (error) {
-                console.error(
-                    `[Worker ${this.workerIdx}] Heartbeat failed:`,
-                    error
-                );
-            }
+        this.heartbeatTimer = setInterval(() => {
+            this.sendHeartbeat();
         }, this.HEARTBEAT_INTERVAL_MS);
     }
 
