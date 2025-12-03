@@ -5,6 +5,7 @@ const envSchema = z.object({
     PORT: z.coerce.number().int().positive().default(8080),
     REDIS_URL: z.string().default('redis://localhost:6379'),
     QUEUE_NAME: z.string().default('execution_queue'),
+    CONTROL_CHANNEL: z.string().default('worker:control-plane'),
 
     // Worker configuration
     WORKER_HEARTBEAT_INTERVAL_MS: z.coerce

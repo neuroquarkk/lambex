@@ -1,7 +1,7 @@
 import express from 'express';
 import morgan from 'morgan';
 import { config } from './config';
-import { runRouter } from 'api';
+import { runRouter, workerRouter } from 'api';
 
 const app = express();
 
@@ -14,5 +14,6 @@ app.get('/', (_req, res) => {
 });
 
 app.use('/api/runs', runRouter);
+app.use('/api/workers', workerRouter);
 
 export default app;

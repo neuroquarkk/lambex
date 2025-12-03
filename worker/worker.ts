@@ -41,6 +41,10 @@ export class Worker {
         await this.redis.quit();
     }
 
+    public get workerId(): string {
+        return this.id;
+    }
+
     private startHeartbeat() {
         this.heartbeatTimer = setInterval(async () => {
             if (this.isShutting) return;

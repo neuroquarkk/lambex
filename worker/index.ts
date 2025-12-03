@@ -1,57 +1,66 @@
-import { checkConn } from 'src/db';
+import { createClient } from 'redis';
+import { config } from 'src/config';
 import { Worker } from './worker';
+import type { WorkerCommand } from 'src/types';
 
-const workers: Worker[] = [];
+const activeWorkers = new Map<string, Worker>();
 
-async function shutdown() {
-    await Promise.allSettled(workers.map((worker) => worker.stop()));
-    console.log(`All workers stopped`);
-    process.exit(0);
-}
+const subClient = createClient({ url: config.REDIS_URL });
 
-async function handleError(error: any) {
-    console.error('Error:', error);
-    if (workers.length) {
-        await Promise.allSettled(workers.map((worker) => worker.stop()));
-    }
-    process.exit(1);
-}
+async function spawn(count: number = 1) {
+    for (let i = 0; i < count; i++) {
+        const idx = activeWorkers.size + 1;
+        const worker = new Worker(idx);
 
-async function main() {
-    const args = process.argv.slice(2);
-    let conc = 1;
+        activeWorkers.set(worker.workerId, worker);
 
-    const cIdx = args.findIndex((arg) => arg === '-c');
+        worker.start().catch((err) => {
+            console.error(`Worker ${worker.workerId} crashed:`, err);
+            activeWorkers.delete(worker.workerId);
+        });
 
-    if (cIdx !== -1 && cIdx + 1 < args.length) {
-        const value = args[cIdx + 1]!;
-        const parsed = parseInt(value, 10);
-
-        if (isNaN(parsed) || parsed < 1) {
-            console.warn('-c flag is not valid, defaulting to 1 worker');
-        } else {
-            conc = parsed;
-        }
-    }
-
-    process.on('SIGINT', () => shutdown());
-    process.on('SIGTERM', () => shutdown());
-
-    await checkConn();
-    console.log(`Starting ${conc} worker(s)...`);
-
-    for (let i = 0; i < conc; i++) {
-        const worker = new Worker(i + 1);
-        workers.push(worker);
-
-        worker
-            .start()
-            .catch((err) => console.error(`Worker ${i + 1} crashed:`, err));
-
-        // small stagger that prevents all workers from hitting db at exact
-        // same millisecond during startup
+        console.log(`[Manager] Spawned worker: ${worker.workerId}`);
         await new Promise((r) => setTimeout(r, 50));
     }
 }
 
-main().catch(handleError);
+async function kill(targetId: string) {
+    const worker = activeWorkers.get(targetId);
+    if (!worker) {
+        console.warn(`[Manager] Worker ${targetId} not found`);
+        return;
+    }
+
+    await worker.stop();
+    activeWorkers.delete(targetId);
+    console.log(`[Manager] Killed worker: ${targetId}`);
+}
+
+async function main() {
+    await subClient.connect();
+    await subClient.subscribe(config.CONTROL_CHANNEL, async (msg) => {
+        const cmd = JSON.parse(msg) as WorkerCommand;
+
+        switch (cmd.type) {
+            case 'SPAWN':
+                await spawn(cmd.count);
+                break;
+            case 'KILL':
+                await kill(cmd.workerId);
+                break;
+            case 'SHUTDOWN':
+                console.log('[Manager] Received global shutdown signal');
+                process.exit(0);
+        }
+    });
+
+    console.log(`[Manager] Listening on channel: ${config.CONTROL_CHANNEL}`);
+}
+
+process.on('SIGINT', async () => {
+    console.log('[Manager] Shutting down...');
+    await Promise.allSettled([...activeWorkers.values()].map((w) => w.stop()));
+    process.exit(0);
+});
+
+main().catch(console.error);

@@ -4,3 +4,8 @@ export type TypedController = (
     req: Request,
     res: Response
 ) => Promise<any> | any;
+
+export type WorkerCommand =
+    | { type: 'SPAWN'; count: number }
+    | { type: 'KILL'; workerId: string }
+    | { type: 'SHUTDOWN' };
