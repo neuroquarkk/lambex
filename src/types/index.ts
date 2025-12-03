@@ -6,6 +6,6 @@ export type TypedController = (
 ) => Promise<any> | any;
 
 export type WorkerCommand =
-    | { type: 'SPAWN'; count: number }
+    | { type: 'SPAWN'; count: number; targetId?: string }
     | { type: 'KILL'; workerId: string }
-    | { type: 'SHUTDOWN' };
+    | { type: 'SHUTDOWN'; targetId?: string };

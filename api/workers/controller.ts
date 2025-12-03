@@ -2,6 +2,7 @@ import { redis } from 'src/db';
 import type { TypedController } from 'src/types';
 import { spawnWorkerSchema } from './schema';
 import { config } from 'src/config';
+import { randomInt } from 'crypto';
 
 export const listWorkers: TypedController = async (_req, res) => {
     try {
@@ -33,15 +34,30 @@ export const spawnWorkers: TypedController = async (req, res) => {
             return res.status(400).json({ error: validation.error.issues });
         }
 
-        const { count } = validation.data;
+        const { count, targetId: explicitTarget } = validation.data;
+        let targetId = explicitTarget;
+
+        if (!targetId) {
+            const managerKeys = await redis.keys('manager:*');
+            if (managerKeys.length === 0) {
+                return res.status(503).json({
+                    error: 'No active workers nodes found',
+                });
+            }
+
+            // Pick a random manager
+            const randomKey = managerKeys[randomInt(0, managerKeys.length)];
+            targetId = randomKey?.replace('manager:', '');
+        }
 
         await redis.publish(
             config.CONTROL_CHANNEL,
-            JSON.stringify({ type: 'SPAWN', count })
+            JSON.stringify({ type: 'SPAWN', count, targetId })
         );
 
         return res.status(202).json({
             message: `Signal sent to spawn ${count} worker(s)`,
+            target: targetId,
         });
     } catch (error) {
         console.error('Spawn worker error:', error);

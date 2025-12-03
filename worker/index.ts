@@ -2,10 +2,28 @@ import { createClient } from 'redis';
 import { config } from 'src/config';
 import { Worker } from './worker';
 import type { WorkerCommand } from 'src/types';
+import { hostname } from 'os';
 
+const MANAGER_ID = `mgr-${hostname()}-${process.pid}`;
 const activeWorkers = new Map<string, Worker>();
 
-const subClient = createClient({ url: config.REDIS_URL });
+const redisClient = createClient({ url: config.REDIS_URL });
+const subClient = redisClient.duplicate();
+
+function startMgrHeartbeat() {
+    setInterval(async () => {
+        try {
+            await redisClient.set(`manager:${MANAGER_ID}`, 'ONLINE', {
+                expiration: {
+                    type: 'EX',
+                    value: 5,
+                },
+            });
+        } catch (error) {
+            console.error('[Manager] Heartbeat failed:', error);
+        }
+    }, 3000);
+}
 
 async function spawn(count: number = 1) {
     for (let i = 0; i < count; i++) {
@@ -37,9 +55,16 @@ async function kill(targetId: string) {
 }
 
 async function main() {
-    await subClient.connect();
+    await Promise.all([redisClient.connect(), subClient.connect()]);
+    startMgrHeartbeat();
+    console.log(`[Manager] Started with ID: ${MANAGER_ID}`);
+
     await subClient.subscribe(config.CONTROL_CHANNEL, async (msg) => {
         const cmd = JSON.parse(msg) as WorkerCommand;
+
+        if ('targetId' in cmd && cmd.targetId && cmd.targetId !== MANAGER_ID) {
+            return;
+        }
 
         switch (cmd.type) {
             case 'SPAWN':
@@ -49,7 +74,7 @@ async function main() {
                 await kill(cmd.workerId);
                 break;
             case 'SHUTDOWN':
-                console.log('[Manager] Received global shutdown signal');
+                console.log(`[Manager] Shutting down node ${MANAGER_ID}`);
                 process.exit(0);
         }
     });
